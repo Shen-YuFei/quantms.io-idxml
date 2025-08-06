@@ -53,6 +53,4 @@ def convert_idxml_psm(
     output_path = (
         f"{output_folder}/{create_uuid_filename(output_prefix_file, '.psm.parquet')}"
     )
-    idxml_manager.write_psm_to_file(
-        output_path=output_path, chunksize=chunksize
-    )
+    idxml_manager.write_psm_to_file(output_path=output_path, chunksize=chunksize)
