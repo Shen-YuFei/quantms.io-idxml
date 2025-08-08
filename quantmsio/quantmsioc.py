@@ -31,7 +31,6 @@ from quantmsio.commands.ibaq_command import convert_ibaq_file
 from quantmsio.commands.fragpipe_command import convert_fragpipe_psm
 from quantmsio.commands.map_latest_uniport_command import map_latest_uniport
 from quantmsio.commands.anndata_command import merge_ae_files
-from quantmsio.commands.idxml_command import convert_idxml_psm
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
@@ -70,7 +69,6 @@ cli.add_command(convert_ibaq_file)
 cli.add_command(map_latest_uniport)
 cli.add_command(convert_fragpipe_psm)
 cli.add_command(merge_ae_files)
-cli.add_command(convert_idxml_psm)
 
 
 def quantms_io_main() -> None:
