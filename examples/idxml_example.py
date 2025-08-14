@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Example script demonstrating IdXML to PSM conversion functionality.
 """
@@ -10,7 +9,6 @@ from quantmsio.core.idxml import IdXML
 def main():
     """Main function demonstrating IdXML usage."""
 
-    # Example IdXML file path (update this to your actual file)
     idxml_file = "tests/examples/idxml/HF2_8379_RST_1_phos_281118_consensus_fdr_filter_pep_luciphor.idXML"
 
     if not Path(idxml_file).exists():
@@ -22,10 +20,8 @@ def main():
         print("=== IdXML to PSM Conversion Example ===")
         print(f"Processing file: {idxml_file}")
 
-        # Initialize IdXML parser
         idxml = IdXML(idxml_file)
 
-        # Get basic statistics
         psm_count = idxml.get_psm_count()
         protein_count = idxml.get_protein_count()
 
@@ -37,32 +33,37 @@ def main():
             print("\nNo PSMs found in the file.")
             return
 
-        # Convert to DataFrame
         print("\nConverting to DataFrame...")
         df = idxml.to_dataframe()
 
         print(f"DataFrame created with shape: {df.shape}")
         print(f"Columns: {list(df.columns)}")
 
-        # Show sample data
         if not df.empty:
             print(f"\nSample PSM data (first 3 rows):")
-            for i, row in df.head(3).iterrows():
+            for i, row in df.head(10).iterrows():
                 print(f"  PSM {i+1}:")
                 print(f"    Sequence: {row['sequence']}")
-                print(f"    Charge: {row['precursor_charge']}")
+                print(f"    Peptidoform: {row['peptidoform']}")
                 print(f"    Modifications: {row['modifications']}")
-                print(f"    Proteins: {row['mp_accessions']}")
+                print(f"    Precursor charge: {row['precursor_charge']}")
+                print(f"    Posterior error probability: {row['posterior_error_probability']:.6f}")
+                print(f"    Is decoy: {row['is_decoy']}")
+                print(f"    Calculated m/z: {row['calculated_mz']:.4f}")
+                print(f"    Observed m/z: {row['observed_mz']:.4f}")
+                print(f"    Additional scores: {row['additional_scores']}")
+                print(f"    MP accessions: {row['mp_accessions']}")
                 print(f"    RT: {row['rt']:.2f}")
-                print(f"    m/z: {row['observed_mz']:.4f}")
+                print(f"    Reference file name: {row['reference_file_name']}")
+                print(f"    Q-value: {row['q_value']}")
+                print(f"    Cv params: {row['cv_params']}")
+                print(f"    Scan: {row['scan']}")
                 print()
 
-        # Convert to parquet
         output_file = "output_psm.parquet"
         print(f"Converting to parquet format: {output_file}")
         idxml.to_parquet(output_file)
 
-        # Verify output
         if Path(output_file).exists():
             file_size = Path(output_file).stat().st_size / 1024 / 1024
             print(f"Successfully created parquet file: {output_file}")

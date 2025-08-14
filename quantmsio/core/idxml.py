@@ -46,12 +46,10 @@ class IdXML:
             tree = ET.parse(self.idxml_path)
             root = tree.getroot()
 
-            # Find all ProteinIdentification elements
             for protein_id in root.findall(".//ProteinIdentification"):
                 for protein_hit in protein_id.findall(".//ProteinHit"):
                     accession = protein_hit.get("accession", "")
                     if accession:
-                        # Check if it's a decoy protein
                         is_decoy = 0
                         target_decoy_param = protein_hit.find(
                             './/UserParam[@name="target_decoy"]'
@@ -86,52 +84,16 @@ class IdXML:
             tree = ET.parse(self.idxml_path)
             root = tree.getroot()
 
-            # Find all PeptideIdentification elements
             for peptide_id in root.findall(".//PeptideIdentification"):
                 mz = float(peptide_id.get("MZ", 0))
                 rt = float(peptide_id.get("RT", 0))
                 spectrum_ref = peptide_id.get("spectrum_reference", "")
 
-                # Extract scan number from spectrum reference
-                scan_number = self._extract_scan_number(spectrum_ref)
+                scan = self._extract_scan_number(spectrum_ref)
 
                 for peptide_hit in peptide_id.findall(".//PeptideHit"):
                     peptide_data = self._parse_peptide_hit(
-                        peptide_hit, mz, rt, scan_number
-                    )
-                    if peptide_data:
-                        self._peptide_identifications.append(peptide_data)
-
-        except ET.ParseError as e:
-            logging.error(f"Error parsing IdXML file: {e}")
-            raise
-        except Exception as e:
-            logging.error(
-                f"Unexpected error while parsing peptide identifications: {e}"
-            )
-            raise
-
-    def _parse_peptide_identifications(self) -> None:
-        """
-        Parse peptide identifications from the IdXML file.
-        Extracts peptide hits with their associated information.
-        """
-        try:
-            tree = ET.parse(self.idxml_path)
-            root = tree.getroot()
-
-            # Find all PeptideIdentification elements
-            for peptide_id in root.findall(".//PeptideIdentification"):
-                mz = float(peptide_id.get("MZ", 0))
-                rt = float(peptide_id.get("RT", 0))
-                spectrum_ref = peptide_id.get("spectrum_reference", "")
-
-                # Extract scan number from spectrum reference
-                scan_number = self._extract_scan_number(spectrum_ref)
-
-                for peptide_hit in peptide_id.findall(".//PeptideHit"):
-                    peptide_data = self._parse_peptide_hit(
-                        peptide_hit, mz, rt, scan_number
+                        peptide_hit, mz, rt, scan, spectrum_ref
                     )
                     if peptide_data:
                         self._peptide_identifications.append(peptide_data)
@@ -146,7 +108,7 @@ class IdXML:
             raise
 
     def _parse_peptide_hit(
-        self, peptide_hit: ET.Element, mz: float, rt: float, scan_number: str
+        self, peptide_hit: ET.Element, mz: float, rt: float, scan: str, spectrum_ref: str
     ) -> Optional[Dict]:
         """
         Parse individual peptide hit information.
@@ -154,7 +116,7 @@ class IdXML:
         :param peptide_hit: XML element containing peptide hit data
         :param mz: Precursor m/z value
         :param rt: Retention time value
-        :param scan_number: Scan number from spectrum reference
+        :param scan: Scan number from spectrum reference
         :return: Dictionary containing parsed peptide hit data
         """
         try:
@@ -165,23 +127,9 @@ class IdXML:
             charge = int(peptide_hit.get("charge", 1))
             score = float(peptide_hit.get("score", 0))
 
-            # Extract protein references
             protein_refs = peptide_hit.get("protein_refs", "")
-            protein_accessions = []
-            if protein_refs:
-                # Parse protein references (comma-separated)
-                ref_list = [ref.strip() for ref in protein_refs.split(",")]
-                for ref in ref_list:
-                    if ref in self._protein_map:
-                        protein_accessions.append(self._protein_map[ref]["accession"])
-
-            # Extract modifications
             modifications = self._parse_modifications(sequence)
 
-            # Generate peptidoform notation in MSstats format
-            peptidoform = self._generate_peptidoform_msstats(sequence, modifications)
-
-            # Extract additional scores and parameters
             additional_scores = []
             q_value = None
             posterior_error_probability = None
@@ -207,7 +155,6 @@ class IdXML:
                     except ValueError:
                         pass
                 else:
-                    # Add other scores to additional_scores
                     try:
                         score_value = float(param_value)
                         additional_scores.append(
@@ -216,33 +163,37 @@ class IdXML:
                     except ValueError:
                         pass
 
-            # Determine if this is a decoy peptide
             is_decoy = 0
             target_decoy_param = peptide_hit.find('.//UserParam[@name="target_decoy"]')
             if target_decoy_param is not None:
                 is_decoy = 1 if target_decoy_param.get("value") == "decoy" else 0
 
-            # Calculate theoretical m/z (simplified calculation)
             calculated_mz = self._calculate_theoretical_mz(sequence, charge)
+            
+            protein_accessions = []
+            if protein_refs:
+                protein_accessions = [ref.strip() for ref in protein_refs.split(",")]
+
+            clean_sequence = sequence
+            if "(" in sequence:
+                clean_sequence = re.sub(r"[\(\[].*?[\)\]]", "", sequence)
 
             return {
-                "sequence": sequence,
-                "peptidoform": peptidoform,
+                "sequence": clean_sequence,
+                "peptidoform": sequence,
                 "modifications": modifications,
                 "precursor_charge": charge,
-                "posterior_error_probability": posterior_error_probability or 0.0,
+                "posterior_error_probability": posterior_error_probability,
                 "is_decoy": is_decoy,
                 "calculated_mz": calculated_mz,
                 "observed_mz": mz,
                 "additional_scores": additional_scores,
                 "mp_accessions": protein_accessions,
                 "rt": rt,
-                "reference_file_name": self._extract_filename_from_spectrum_ref(
-                    scan_number
-                ),
-                "spectrum_ref": scan_number,
-                "q_value": q_value or 0.0,
-                "consensus_support": consensus_support or 0.0,
+                "reference_file_name": spectrum_ref,
+                "scan": scan,
+                "q_value": q_value,
+                "cv_params": consensus_support,
             }
 
         except Exception as e:
@@ -257,8 +208,23 @@ class IdXML:
         :return: List of modification dictionaries
         """
         modifications = []
+        aa_positions = []
+        aa_count = 0
+        
+        i = 0
+        while i < len(sequence):
+            if sequence[i] == '(':
+                j = i + 1
+                while j < len(sequence) and sequence[j] != ')':
+                    j += 1
+                i = j + 1 if j < len(sequence) else len(sequence)
+            elif sequence[i].isalpha():
+                aa_count += 1
+                aa_positions.append((i, aa_count))
+                i += 1
+            else:
+                i += 1
 
-        # Simple regex to find modifications like (Phospho), (Oxidation), etc.
         mod_pattern = r"\(([^)]+)\)"
         matches = list(re.finditer(mod_pattern, sequence))
 
@@ -266,50 +232,22 @@ class IdXML:
             mod_name = match.group(1)
             position = match.start()
 
-            # Find the amino acid position this modification applies to
             aa_pos = 0
-            for i, char in enumerate(sequence[:position]):
-                if char.isalpha():
-                    aa_pos += 1
+            for orig_index, aa_position in aa_positions:
+                if orig_index < position:
+                    aa_pos = aa_position
+                else:
+                    break
 
             modifications.append(
                 {
                     "modification_name": mod_name,
                     "position": aa_pos,
-                    "localization_probability": 1.0,  # Default value
+                    "localization_probability": 1.0,
                 }
             )
 
         return modifications
-
-    def _generate_peptidoform_msstats(
-        self, sequence: str, modifications: List[Dict]
-    ) -> str:
-        """
-        Generate peptidoform in MSstats notation from sequence and modifications.
-
-        :param sequence: Peptide sequence
-        :param modifications: List of modification dictionaries
-        :return: Peptidoform in MSstats notation (e.g., PEPTIDE(Oxidation))
-        """
-        if not modifications:
-            return sequence
-
-        # Create a copy of the sequence to modify
-        result = list(sequence)
-
-        # Sort modifications by position (descending) to avoid index shifting
-        sorted_mods = sorted(modifications, key=lambda x: x["position"], reverse=True)
-
-        for mod in sorted_mods:
-            position = mod["position"]
-            mod_name = mod["modification_name"]
-
-            # Insert modification after the amino acid at the specified position
-            if 0 <= position < len(result):
-                result.insert(position + 1, f"({mod_name})")
-
-        return "".join(result)
 
     def _extract_scan_number(self, spectrum_ref: str) -> str:
         """
@@ -318,21 +256,10 @@ class IdXML:
         :param spectrum_ref: Spectrum reference string
         :return: Extracted scan number
         """
-        # Pattern: controllerType=0 controllerNumber=1 scan=37144
         scan_match = re.search(r"scan=(\d+)", spectrum_ref)
         if scan_match:
             return scan_match.group(1)
-        return spectrum_ref
-
-    def _extract_filename_from_spectrum_ref(self, spectrum_ref: str) -> str:
-        """
-        Extract filename from spectrum reference.
-
-        :param spectrum_ref: Spectrum reference string
-        :return: Extracted filename
-        """
-        # For now, return a default filename since IdXML doesn't always contain file info
-        return "unknown_file"
+        return "unknown_index"
 
     def _calculate_theoretical_mz(self, sequence: str, charge: int) -> float:
         """
@@ -343,7 +270,6 @@ class IdXML:
         :param charge: Charge state
         :return: Theoretical m/z value
         """
-        # Simplified amino acid masses (monoisotopic)
         aa_masses = {
             "A": 71.03711,
             "R": 156.10111,
@@ -367,16 +293,13 @@ class IdXML:
             "V": 99.06841,
         }
 
-        # Calculate peptide mass
         peptide_mass = 0
         for aa in sequence:
             if aa in aa_masses:
                 peptide_mass += aa_masses[aa]
 
-        # Add N-terminal H and C-terminal OH
         peptide_mass += 1.007825 + 17.00274
 
-        # Calculate m/z
         if charge > 0:
             return (peptide_mass + (charge - 1) * 1.007825) / charge
         else:
@@ -393,7 +316,6 @@ class IdXML:
 
         df = pd.DataFrame(self._peptide_identifications)
 
-        # Ensure all required columns are present
         required_columns = [
             "sequence",
             "peptidoform",
@@ -407,7 +329,7 @@ class IdXML:
             "mp_accessions",
             "rt",
             "reference_file_name",
-            "spectrum_ref",
+            "scan",
             "q_value",
             "consensus_support",
         ]
@@ -429,10 +351,8 @@ class IdXML:
             logging.warning("No peptide identifications found to convert")
             return
 
-        # Convert to pyarrow table
         table = pa.Table.from_pandas(df)
 
-        # Write to parquet file
         pq.write_table(table, output_path)
         logging.info(f"Successfully converted IdXML to parquet: {output_path}")
 
