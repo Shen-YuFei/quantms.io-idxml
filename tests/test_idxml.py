@@ -79,7 +79,7 @@ class TestIdXML(unittest.TestCase):
                     "mp_accessions",
                     "rt",
                     "reference_file_name",
-                    "spectrum_ref",
+                    "scan",
                     "q_value",
                     "consensus_support",
                 ]
@@ -139,7 +139,7 @@ class TestIdXML(unittest.TestCase):
         # Test with no scan number
         test_spectrum_ref_no_scan = "controllerType=0 controllerNumber=1"
         scan_number_no_scan = idxml._extract_scan_number(test_spectrum_ref_no_scan)
-        self.assertEqual(scan_number_no_scan, test_spectrum_ref_no_scan)
+        self.assertEqual(scan_number_no_scan, "unknown_index")
 
     def test_theoretical_mz_calculation(self):
         """Test theoretical m/z calculation."""
