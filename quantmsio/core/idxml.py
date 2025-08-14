@@ -138,7 +138,6 @@ class IdXML:
             additional_scores = []
             q_value = None
             posterior_error_probability = None
-            consensus_support = None
 
             for user_param in peptide_hit.findall(".//UserParam"):
                 param_name = user_param.get("name", "")
@@ -152,11 +151,6 @@ class IdXML:
                 elif param_name == "Posterior Error Probability_score":
                     try:
                         posterior_error_probability = float(param_value)
-                    except ValueError:
-                        pass
-                elif param_name == "consensus_support":
-                    try:
-                        consensus_support = float(param_value)
                     except ValueError:
                         pass
                 else:
@@ -198,7 +192,6 @@ class IdXML:
                 "reference_file_name": spectrum_ref,
                 "scan": scan,
                 "q_value": q_value,
-                "cv_params": consensus_support,
             }
 
         except Exception as e:

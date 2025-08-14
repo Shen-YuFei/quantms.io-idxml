@@ -40,7 +40,7 @@ def main():
         print(f"Columns: {list(df.columns)}")
 
         if not df.empty:
-            print(f"\nSample PSM data (first 3 rows):")
+            print(f"\nSample PSM data (first 10 rows):")
             for i, row in df.head(10).iterrows():
                 print(f"  PSM {i+1}:")
                 print(f"    Sequence: {row['sequence']}")
@@ -58,7 +58,6 @@ def main():
                 print(f"    RT: {row['rt']:.2f}")
                 print(f"    Reference file name: {row['reference_file_name']}")
                 print(f"    Q-value: {row['q_value']}")
-                print(f"    Cv params: {row['cv_params']}")
                 print(f"    Scan: {row['scan']}")
                 print()
 

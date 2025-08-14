@@ -81,7 +81,6 @@ class TestIdXML(unittest.TestCase):
                     "reference_file_name",
                     "scan",
                     "q_value",
-                    "consensus_support",
                 ]
 
                 for col in required_columns:
