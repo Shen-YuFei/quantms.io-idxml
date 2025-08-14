@@ -47,7 +47,9 @@ def main():
                 print(f"    Peptidoform: {row['peptidoform']}")
                 print(f"    Modifications: {row['modifications']}")
                 print(f"    Precursor charge: {row['precursor_charge']}")
-                print(f"    Posterior error probability: {row['posterior_error_probability']:.6f}")
+                print(
+                    f"    Posterior error probability: {row['posterior_error_probability']:.6f}"
+                )
                 print(f"    Is decoy: {row['is_decoy']}")
                 print(f"    Calculated m/z: {row['calculated_mz']:.4f}")
                 print(f"    Observed m/z: {row['observed_mz']:.4f}")

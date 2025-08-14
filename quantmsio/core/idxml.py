@@ -108,7 +108,12 @@ class IdXML:
             raise
 
     def _parse_peptide_hit(
-        self, peptide_hit: ET.Element, mz: float, rt: float, scan: str, spectrum_ref: str
+        self,
+        peptide_hit: ET.Element,
+        mz: float,
+        rt: float,
+        scan: str,
+        spectrum_ref: str,
     ) -> Optional[Dict]:
         """
         Parse individual peptide hit information.
@@ -169,7 +174,7 @@ class IdXML:
                 is_decoy = 1 if target_decoy_param.get("value") == "decoy" else 0
 
             calculated_mz = self._calculate_theoretical_mz(sequence, charge)
-            
+
             protein_accessions = []
             if protein_refs:
                 protein_accessions = [ref.strip() for ref in protein_refs.split(",")]
@@ -210,12 +215,12 @@ class IdXML:
         modifications = []
         aa_positions = []
         aa_count = 0
-        
+
         i = 0
         while i < len(sequence):
-            if sequence[i] == '(':
+            if sequence[i] == "(":
                 j = i + 1
-                while j < len(sequence) and sequence[j] != ')':
+                while j < len(sequence) and sequence[j] != ")":
                     j += 1
                 i = j + 1 if j < len(sequence) else len(sequence)
             elif sequence[i].isalpha():
